@@ -32,7 +32,7 @@ const { Server } = require("socket.io");
 
 const io = new Server(server, {
     cors: {
-        origin: "*",
+        origin: "https://chat-verse-eta.vercel.app",
         methods: ["GET", "POST"]
     }
 });
