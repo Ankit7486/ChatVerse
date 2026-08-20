@@ -46,7 +46,6 @@ The application uses a React frontend and Node.js/Express backend, with MongoDB 
 
 ![ChatVerse AI Chat](screenshots/ai-chat.png)
 
-
 ## 🛠️ Tech Stack
 
 ### Frontend
