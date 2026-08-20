@@ -36,15 +36,15 @@ The application uses a React frontend and Node.js/Express backend, with MongoDB 
 
 ### 🔐 Authentication
 
-![ChatVerse Login](screenshots/login.png)
+![ChatVerse Login](./screenshots/login.png)
 
 ### 💬 Real-Time Chat
 
-![ChatVerse Chat](screenshots/chat.png)
+![ChatVerse Chat](./screenshots/chat.png)
 
 ### 🤖 AI Assistant
 
-![ChatVerse AI Chat](screenshots/ai-chat.png)
+![ChatVerse AI Chat](./screenshots/ai-chat.png)
 
 ## 🛠️ Tech Stack
 
