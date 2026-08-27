@@ -30,9 +30,14 @@ app.use(pollRoutes);
 
 const { Server } = require("socket.io");
 
+const allowedOrigins = [
+    "http://localhost:5173",
+    "https://chat-verse-eta.vercel.app"
+];
+
 const io = new Server(server, {
     cors: {
-        origin: "https://chat-verse-eta.vercel.app",
+        origin: allowedOrigins,
         methods: ["GET", "POST"]
     }
 });

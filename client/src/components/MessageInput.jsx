@@ -68,7 +68,6 @@ const [aiTranslatedLanguage, setAiTranslatedLanguage] =
 ];
 
     const speechRecognitionRef = useRef(null);
-    const wakeRecognitionRef = useRef(null);
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
     const recordingTimerRef = useRef(null);
@@ -296,28 +295,6 @@ const updatePollOption = (
 
 
 
-useEffect(() => {
-
-    const timer = setTimeout(() => {
-        startWakeWordListener();
-    }, 1000);
-
-    return () => {
-
-        clearTimeout(timer);
-
-        if (
-            wakeRecognitionRef.current
-        ) {
-            try {
-                wakeRecognitionRef.current.stop();
-            } catch (error) {}
-        }
-
-    };
-
-}, []);
-
 const speakAI = (text) => {
 
     if (!("speechSynthesis" in window)) {
@@ -403,6 +380,7 @@ const startAIAssistant = () => {
 
     recognition.start();
 };
+
 
    const closeAIAssistant = () => {
     if (speechRecognitionRef.current) {
