@@ -26,6 +26,8 @@ function ChatWindow({ selectedChat, setSelectedChat, currentUser, onlineUsers, o
   const [callDuration, setCallDuration] = useState(0);
 const [isMuted, setIsMuted] = useState(false);
 const [isCameraOff, setIsCameraOff] = useState(false);
+const [isScreenSharing, setIsScreenSharing] =
+    useState(false);
   const [showAnnouncement, setShowAnnouncement] =
     useState(false);
 
@@ -91,6 +93,8 @@ const peerConnectionRef =
 
 const localStreamRef =
     useRef(null);
+    const screenStreamRef = useRef(null);
+    const cameraTrackRef = useRef(null);
 
     const callPeerIdRef = useRef(null);
 
@@ -1720,6 +1724,198 @@ const endCall = (notifyRemote = true) => {
     }
 };
 
+const stopScreenSharing = async () => {
+
+    const peer =
+        peerConnectionRef.current;
+
+    const cameraTrack =
+        cameraTrackRef.current;
+
+    try {
+
+        if (peer && cameraTrack) {
+
+            const videoSender =
+                peer.getSenders().find(
+                    sender =>
+                        sender.track?.kind ===
+                        "video"
+                );
+
+            if (videoSender) {
+
+                await videoSender.replaceTrack(
+                    cameraTrack
+                );
+            }
+        }
+
+        // Stop the screen capture.
+        if (screenStreamRef.current) {
+
+            screenStreamRef.current
+                .getTracks()
+                .forEach(track => {
+                    track.onended = null;
+                    track.stop();
+                });
+
+            screenStreamRef.current =
+                null;
+        }
+
+        // Restore local camera preview.
+        if (
+            localVideoRef.current &&
+            localStreamRef.current
+        ) {
+
+            localVideoRef.current.srcObject =
+                localStreamRef.current;
+
+            localVideoRef.current.muted =
+                true;
+
+            await localVideoRef.current
+                .play()
+                .catch(() => {});
+        }
+
+        cameraTrackRef.current =
+            null;
+
+        setIsScreenSharing(false);
+
+    } catch (error) {
+
+        console.error(
+            "Stop screen sharing error:",
+            error
+        );
+
+    }
+};
+
+const toggleScreenShare = async () => {
+    const peer = peerConnectionRef.current;
+
+    if (!peer) {
+        return;
+    }
+
+    // Screen sharing only makes sense
+    // during an active video call.
+    if (callType !== "video") {
+        alert("Screen sharing is available during video calls only.");
+        return;
+    }
+
+    try {
+        // =========================
+        // STOP SCREEN SHARING
+        // =========================
+
+        if (isScreenSharing) {
+            await stopScreenSharing();
+            return;
+        }
+
+        // =========================
+        // START SCREEN SHARING
+        // =========================
+
+        const displayStream =
+            await navigator.mediaDevices.getDisplayMedia({
+                video: {
+                    cursor: "always"
+                },
+                audio: false
+            });
+
+        const screenTrack =
+            displayStream.getVideoTracks()[0];
+
+        if (!screenTrack) {
+            displayStream.getTracks().forEach(track => track.stop());
+            return;
+        }
+
+        const videoSender =
+            peer.getSenders().find(
+                sender =>
+                    sender.track?.kind === "video"
+            );
+
+        if (!videoSender) {
+            displayStream.getTracks().forEach(track => track.stop());
+
+            alert(
+                "Unable to find the video connection."
+            );
+
+            return;
+        }
+
+        // Save the current camera track
+        // before replacing it.
+        const cameraTrack =
+            localStreamRef.current
+                ?.getVideoTracks()
+                ?. [0];
+
+        cameraTrackRef.current =
+            cameraTrack || null;
+
+        screenStreamRef.current =
+            displayStream;
+
+        // Replace camera → screen
+        await videoSender.replaceTrack(
+            screenTrack
+        );
+
+        // Show the screen locally.
+        if (localVideoRef.current) {
+            localVideoRef.current.srcObject =
+                displayStream;
+
+            localVideoRef.current.muted =
+                true;
+
+            await localVideoRef.current
+                .play()
+                .catch(() => {});
+        }
+
+        setIsScreenSharing(true);
+
+        // Browser's native "Stop sharing"
+        // button triggers this.
+        screenTrack.onended = async () => {
+            await stopScreenSharing();
+        };
+
+    } catch (error) {
+
+        console.error(
+            "Screen sharing error:",
+            error
+        );
+
+        // User clicking Cancel is normal.
+        if (
+            error.name !==
+            "NotAllowedError"
+        ) {
+            alert(
+                error.message ||
+                "Unable to start screen sharing."
+            );
+        }
+    }
+};
+
 // =========================
 // CALL CONTROLS
 // =========================
@@ -2926,9 +3122,73 @@ socket.off(
         flex
         flex-col
     ">
+        <audio
+    ref={remoteAudioRef}
+    autoPlay
+    playsInline
+/>
 
         {callType === "video" ? (
             <>
+
+            {!remoteStream && (
+    <div className="
+        absolute
+        inset-0
+        flex
+        flex-col
+        items-center
+        justify-center
+        bg-slate-950
+        text-white
+        z-10
+    ">
+        <div className="
+            h-24
+            w-24
+            rounded-full
+            bg-indigo-500
+            flex
+            items-center
+            justify-center
+            text-4xl
+        ">
+            {otherUser?.avatar ? (
+                <img
+                    src={otherUser.avatar}
+                    alt=""
+                    className="
+                        h-full
+                        w-full
+                        rounded-full
+                        object-cover
+                    "
+                />
+            ) : (
+                otherUser?.name
+                    ?.charAt(0)
+                    ?.toUpperCase() || "?"
+            )}
+        </div>
+
+        <p className="
+            mt-4
+            text-lg
+            font-semibold
+        ">
+            {otherUser?.name || "User"}
+        </p>
+
+        <p className="
+            mt-1
+            text-sm
+            text-slate-400
+        ">
+            Connecting video...
+        </p>
+    </div>
+)}
+
                 {/* REMOTE VIDEO */}
                 <video
                     ref={remoteVideoRef}
@@ -2940,6 +3200,7 @@ socket.off(
                         w-full
                         h-full
                         object-cover
+                        bg-black
                     "
                 />
 
@@ -3057,6 +3318,21 @@ socket.off(
         }
     >
         {isCameraOff ? "📹" : "📷"}
+    </button>
+)}
+
+    {callType === "video" && (
+    <button
+        type="button"
+        onClick={toggleScreenShare}
+        title={
+            isScreenSharing
+                ? "Stop sharing"
+                : "Share screen"
+        }
+        className="..."
+    >
+        {isScreenSharing ? "🛑" : "🖥️"}
     </button>
 )}
 
